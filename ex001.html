@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Boletos - Organizado por Dia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --dark-bg: #1a1a1a;
+            --darker-bg: #121212;
+            --light-text: #e0e0e0;
+            --accent: #3a86ff;
+            --paid: #4caf50;
+            --unpaid: #f44336;
+            --warning: #ff9800;
+            --urgent: #f44336;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--light-text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .month-card {
+            background-color: var(--darker-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .month-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .bill-item {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid var(--accent);
+        }
+
+        .paid {
+            opacity: 0.7;
+            border-left-color: var(--paid);
+        }
+
+        .paid .bill-name {
+            text-decoration: line-through;
+        }
+
+        .total-display {
+            background-color: rgba(58, 134, 255, 0.1);
+            border-left: 3px solid var(--accent);
+        }
+
+        .modal {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-content {
+            background-color: var(--darker-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        input, select {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--light-text);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(58, 134, 255, 0.3);
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #2a75e6;
+        }
+
+        .btn-paid {
+            background-color: var(--paid);
+        }
+
+        .btn-unpaid {
+            background-color: var(--unpaid);
+        }
+
+        .month-tab {
+            transition: all 0.2s ease;
+        }
+
+        .month-tab:hover {
+            background-color: rgba(58, 134, 255, 0.2);
+        }
+
+        .month-tab.active {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .days-left {
+            font-size: 0.8rem;
+            padding: 2px 6px;
+            border-radius: 12px;
+            margin-left: 8px;
+        }
+
+        .days-normal {
+            background-color: rgba(76, 175, 80, 0.2);
+            color: var(--paid);
+        }
+
+        .days-warning {
+            background-color: rgba(255, 152, 0, 0.2);
+            color: var(--warning);
+        }
+
+        .days-urgent {
+            background-color: rgba(244, 67, 54, 0.2);
+            color: var(--urgent);
+        }
+
+        .bill-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 1rem;
+            padding: 0.5rem 1rem;
+            font-weight: bold;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 0.5rem;
+        }
+
+        .bill-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            align-items: center;
+        }
+
+        .day-section {
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 1rem;
+        }
+
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: rgba(58, 134, 255, 0.1);
+            border-radius: 6px;
+        }
+
+        .day-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .day-total {
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        @media (max-width: 768px) {
+            .bill-header, .bill-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .day-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4">
+    <div class="container mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold mb-2">Controle de Boletos</h1>
+            <p class="text-gray-400">Organize seus pagamentos por dia da semana</p>
+        </header>
+
+        <div class="flex justify-between items-center mb-6">
+            <div class="text-xl font-semibold">
+                <span id="current-month-year">Janeiro 2023</span>
+            </div>
+            <button id="add-bill-btn" class="btn-primary px-4 py-2 rounded-lg flex items-center">
+                <i class="fas fa-plus mr-2"></i> Adicionar Boleto
+            </button>
+        </div>
+
+        <!-- Month Tabs -->
+        <div class="flex overflow-x-auto mb-6 gap-1 pb-2">
+            <template id="month-tab-template">
+                <button class="month-tab px-4 py-2 rounded-lg font-medium whitespace-nowrap" data-month="">
+                    Janeiro
+                </button>
+            </template>
+            <div id="month-tabs" class="flex gap-1"></div>
+        </div>
+
+        <!-- Bills Container -->
+        <div class="grid grid-cols-1 gap-6">
+            <div id="bills-container" class="month-card p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Boletos de <span id="month-title">Janeiro</span></h2>
+                    <div class="total-display px-4 py-2 rounded-lg">
+                        Total Pendente: <span id="total-amount">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <div id="bills-list">
+                    <div class="bill-header hidden md:grid">
+                        <div>Descrição</div>
+                        <div>Vencimento</div>
+                        <div>Dias Restantes</div>
+                        <div>Valor</div>
+                    </div>
+
+                    <div class="text-center py-8 text-gray-500" id="no-bills-message">
+                        <i class="fas fa-file-invoice-dollar text-4xl mb-2"></i>
+                        <p>Nenhum boleto cadastrado para este mês</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Bill Modal -->
+    <div id="add-bill-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="modal-content rounded-lg p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Adicionar Boleto</h3>
+                <button id="close-modal" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="bill-form" class="space-y-4">
+                <div>
+                    <label for="bill-name" class="block mb-1">Nome do Boleto</label>
+                    <input type="text" id="bill-name" class="w-full px-3 py-2 rounded-lg" required>
+                </div>
+
+                <div>
+                    <label for="bill-value" class="block mb-1">Valor (R$)</label>
+                    <input type="number" id="bill-value" min="0" step="0.01" class="w-full px-3 py-2 rounded-lg" required>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="bill-due-day" class="block mb-1">Dia de Vencimento</label>
+                        <input type="number" id="bill-due-day" min="1" max="31" class="w-full px-3 py-2 rounded-lg" required>
+                    </div>
+
+                    <div>
+                        <label for="bill-month" class="block mb-1">Mês</label>
+                        <select id="bill-month" class="w-full px-3 py-2 rounded-lg" required>
+                            <option value="0">Janeiro</option>
+                            <option value="1">Fevereiro</option>
+                            <option value="2">Março</option>
+                            <option value="3">Abril</option>
+                            <option value="4">Maio</option>
+                            <option value="5">Junho</option>
+                            <option value="6">Julho</option>
+                            <option value="7">Agosto</option>
+                            <option value="8">Setembro</option>
+                            <option value="9">Outubro</option>
+                            <option value="10">Novembro</option>
+                            <option value="11">Dezembro</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="bill-year" class="block mb-1">Ano</label>
+                    <input type="number" id="bill-year" min="2023" max="2100" value="2023" class="w-full px-3 py-2 rounded-lg" required>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="btn-primary w-full py-2 rounded-lg">
+                        Adicionar Boleto
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize the app
+            const months = [
+                'Janeiro', 'Fevereiro', 'Março', 'Abril', 
+                'Maio', 'Junho', 'Julho', 'Agosto', 
+                'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+            ];
+            
+            const weekdays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+
+            const currentDate = new Date();
+            const currentMonth = currentDate.getMonth();
+            const currentYear = currentDate.getFullYear();
+
+            let bills = JSON.parse(localStorage.getItem('bills')) || [];
+            let activeMonth = currentMonth;
+            let activeYear = currentYear;
+
+            // DOM Elements
+            const monthTabsContainer = document.getElementById('month-tabs');
+            const monthTitle = document.getElementById('month-title');
+            const currentMonthYear = document.getElementById('current-month-year');
+            const billsList = document.getElementById('bills-list');
+            const noBillsMessage = document.getElementById('no-bills-message');
+            const totalAmount = document.getElementById('total-amount');
+            const addBillBtn = document.getElementById('add-bill-btn');
+            const addBillModal = document.getElementById('add-bill-modal');
+            const closeModalBtn = document.getElementById('close-modal');
+            const billForm = document.getElementById('bill-form');
+
+            // Calculate days left until due date
+            function getDaysLeft(dueDay, month, year) {
+                const today = new Date();
+                const dueDate = new Date(year, month, dueDay);
+
+                // If due date is in the past
+                if (dueDate < today) {
+                    const diffTime = today - dueDate;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    return -diffDays; // Negative for overdue
+                }
+
+                // If due date is today or in the future
+                const diffTime = dueDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays;
+            }
+
+            // Get CSS class for days left display
+            function getDaysLeftClass(daysLeft) {
+                if (daysLeft < 0) return 'days-urgent'; // Overdue
+                if (daysLeft <= 3) return 'days-urgent'; // 0-3 days
+                if (daysLeft <= 7) return 'days-warning'; // 4-7 days
+                return 'days-normal'; // More than 7 days
+            }
+
+            // Format days left text
+            function formatDaysLeft(daysLeft) {
+                if (daysLeft < 0) return `Atrasado ${Math.abs(daysLeft)} dia${Math.abs(daysLeft) !== 1 ? 's' : ''}`;
+                if (daysLeft === 0) return 'Vence hoje';
+                if (daysLeft === 1) return 'Vence amanhã';
+                return `Faltam ${daysLeft} dias`;
+            }
+
+            // Get weekday name for a specific date
+            function getWeekdayName(day, month, year) {
+                const date = new Date(year, month, day);
+                return weekdays[date.getDay()];
+            }
+
+            // Initialize month tabs
+            function initMonthTabs() {
+                monthTabsContainer.innerHTML = '';
+
+                months.forEach((month, index) => {
+                    const tabTemplate = document.getElementById('month-tab-template');
+                    const tab = tabTemplate.content.cloneNode(true);
+                    const tabButton = tab.querySelector('.month-tab');
+
+                    tabButton.textContent = month;
+                    tabButton.dataset.month = index;
+
+                    if (index === activeMonth) {
+                        tabButton.classList.add('active');
+                    }
+
+                    tabButton.addEventListener('click', () => {
+                        document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
+                        tabButton.classList.add('active');
+                        activeMonth = index;
+                        updateBillsDisplay();
+                    });
+
+                    monthTabsContainer.appendChild(tab);
+                });
+            }
+
+            // Update bills display for the active month
+            function updateBillsDisplay() {
+                monthTitle.textContent = months[activeMonth];
+                currentMonthYear.textContent = `${months[activeMonth]} ${activeYear}`;
+
+                // Filter bills for current month and year
+                let monthBills = bills.filter(bill => 
+                    bill.month === activeMonth && bill.year === activeYear
+                );
+
+                // Sort bills by due day
+                monthBills.sort((a, b) => a.dueDay - b.dueDay);
+
+                billsList.innerHTML = '';
+
+                // Re-add header
+                const header = document.createElement('div');
+                header.className = 'bill-header hidden md:grid';
+                header.innerHTML = `
+                    <div>Descrição</div>
+                    <div>Vencimento</div>
+                    <div>Dias Restantes</div>
+                    <div>Valor</div>
+                `;
+                billsList.appendChild(header);
+
+                if (monthBills.length === 0) {
+                    noBillsMessage.classList.remove('hidden');
+                    billsList.appendChild(noBillsMessage);
+                    totalAmount.textContent = 'R$ 0,00';
+                    return;
+                }
+
+                noBillsMessage.classList.add('hidden');
+
+                let totalPending = 0;
+                
+                // Group bills by day
+                const billsByDay = {};
+                monthBills.forEach(bill => {
+                    const dayKey = bill.dueDay;
+                    if (!billsByDay[dayKey]) {
+                        billsByDay[dayKey] = [];
+                    }
+                    billsByDay[dayKey].push(bill);
+                });
+
+                // Display bills grouped by day
+                for (const day in billsByDay) {
+                    const dayBills = billsByDay[day];
+                    const weekdayName = getWeekdayName(parseInt(day), activeMonth, activeYear);
+                    
+                    // Calculate day total
+                    let dayTotal = 0;
+                    dayBills.forEach(bill => {
+                        if (!bill.paid) {
+                            dayTotal += bill.value;
+                        }
+                    });
+                    
+                    // Create day section
+                    const daySection = document.createElement('div');
+                    daySection.className = 'day-section';
+                    
+                    // Create day header
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'day-header';
+                    dayHeader.innerHTML = `
+                        <div class="day-title">
+                            ${day} de ${months[activeMonth]} - ${weekdayName}
+                        </div>
+                        <div class="day-total">
+                            Total: R$ ${dayTotal.toFixed(2).replace('.', ',')}
+                        </div>
+                    `;
+                    daySection.appendChild(dayHeader);
+                    
+                    // Add bills for this day
+                    dayBills.forEach((bill) => {
+                        const daysLeft = getDaysLeft(bill.dueDay, bill.month, bill.year);
+                        const daysClass = getDaysLeftClass(daysLeft);
+                        const daysText = formatDaysLeft(daysLeft);
+
+                        const billRow = document.createElement('div');
+                        billRow.className = `bill-item bill-row rounded-lg ${bill.paid ? 'paid' : ''}`;
+
+                        billRow.innerHTML = `
+                            <div class="flex items-center">
+                                <div>
+                                    <div class="font-medium bill-name">${bill.name}</div>
+                                    <div class="text-sm text-gray-400 md:hidden">Vencimento: ${bill.dueDay.toString().padStart(2, '0')}/${(bill.month + 1).toString().padStart(2, '0')}/${bill.year}</div>
+                                </div>
+                            </div>
+                                                            
+                            <div class="md:flex items-center hidden">
+                                ${bill.dueDay.toString().padStart(2, '0')}/${(bill.month + 1).toString().padStart(2, '0')}/${bill.year}
+                            </div>
+                                                            
+                            <div class="flex items-center">
+                                <span class="days-left ${daysClass}">${daysText}</span>
+                            </div>
+                                                            
+                            <div class="flex items-center justify-between">
+                                <div class="font-bold">R$ ${bill.value.toFixed(2).replace('.', ',')}</div>
+                                <div class="flex space-x-2 ml-2">
+                                    <button class="status-btn px-3 py-1 rounded-lg text-white ${bill.paid ? 'btn-paid' : 'btn-unpaid'}">
+                                        ${bill.paid ? 'Pago' : 'Pagar'}
+                                    </button>
+                                    <button class="delete-btn px-3 py-1 rounded-lg bg-gray-700 hover:bg-gray-600">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+
+                        // Mobile view
+                        const mobileView = document.createElement('div');
+                        mobileView.className = 'md:hidden mt-2 flex justify-between items-center';
+                        mobileView.innerHTML = `
+                            <div>
+                                <span class="days-left ${daysClass}">${daysText}</span>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button class="status-btn px-3 py-1 rounded-lg text-white ${bill.paid ? 'btn-paid' : 'btn-unpaid'}">
+                                    ${bill.paid ? 'Pago' : 'Pagar'}
+                                </button>
+                                <button class="delete-btn px-3 py-1 rounded-lg bg-gray-700 hover:bg-gray-600">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        `;
+
+                        if (!bill.paid) {
+                            totalPending += bill.value;
+                        }
+
+                        daySection.appendChild(billRow);
+                        billRow.appendChild(mobileView);
+
+                        // Add event listeners to the buttons
+                        const statusBtn = billRow.querySelector('.status-btn');
+                        const deleteBtn = billRow.querySelector('.delete-btn');
+
+                        statusBtn.addEventListener('click', () => {
+                            bill.paid = !bill.paid;
+                            saveBills();
+                            updateBillsDisplay();
+                        });
+
+                        deleteBtn.addEventListener('click', () => {
+                            if (confirm('Tem certeza que deseja excluir este boleto?')) {
+                                bills = bills.filter(b => !(
+                                    b.name === bill.name && 
+                                    b.month === bill.month && 
+                                    b.year === bill.year && 
+                                    b.value === bill.value && 
+                                    b.dueDay === bill.dueDay
+                                ));
+                                saveBills();
+                                updateBillsDisplay();
+                            }
+                        });
+                    });
+                    
+                    billsList.appendChild(daySection);
+                }
+
+                totalAmount.textContent = `R$ ${totalPending.toFixed(2).replace('.', ',')}`;
+            }
+
+            // Save bills to localStorage
+            function saveBills() {
+                localStorage.setItem('bills', JSON.stringify(bills));
+            }
+
+            // Modal handling
+            addBillBtn.addEventListener('click', () => {
+                addBillModal.classList.remove('hidden');
+                document.getElementById('bill-month').value = activeMonth;
+                document.getElementById('bill-year').value = activeYear;
+                document.getElementById('bill-name').focus();
+            });
+
+            closeModalBtn.addEventListener('click', () => {
+                addBillModal.classList.add('hidden');
+            });
+
+            // Handle form submission
+            billForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const name = document.getElementById('bill-name').value.trim();
+                const value = parseFloat(document.getElementById('bill-value').value);
+                const dueDay = parseInt(document.getElementById('bill-due-day').value);
+                const month = parseInt(document.getElementById('bill-month').value);
+                const year = parseInt(document.getElementById('bill-year').value);
+
+                // Validate due day
+                if (dueDay < 1 || dueDay > 31) {
+                    alert('Por favor, insira um dia de vencimento válido (1-31)');
+                    return;
+                }
+
+                // Validate value
+                if (isNaN(value) || value <= 0) {
+                    alert('Por favor, insira um valor válido maior que zero');
+                    return;
+                }
+
+                // Create new bill
+                const newBill = {
+                    name,
+                    value,
+                    dueDay,
+                    month,
+                    year,
+                    paid: false,
+                    createdAt: new Date().getTime()
+                };
+
+                bills.push(newBill);
+                saveBills();
+
+                // Reset form and close modal
+                billForm.reset();
+                addBillModal.classList.add('hidden');
+
+                // If the bill is for the current active month, update display
+                if (month === activeMonth && year === activeYear) {
+                    updateBillsDisplay();
+                }
+            });
+
+            // Initialize the app
+            initMonthTabs();
+            updateBillsDisplay();
+
+            // Close modal when clicking outside
+            addBillModal.addEventListener('click', function(e) {
+                if (e.target === addBillModal) {
+                    addBillModal.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
