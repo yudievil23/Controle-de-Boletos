@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Financeiro Tech</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --primary: #ff8c00;
+            --primary-hover: #e67e00;
+            --text: #e0e0e0;
+            --text-dim: #a0a0a0;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f1c40f;
+            --border: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .controls-top {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        select, input {
+            background: #2a2a2a;
+            border: 1px solid var(--border);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        .btn {
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 18px;
+            font-weight: 600;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: black;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+        }
+
+        .column-left {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .search-box {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .card-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-left: 5px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            position: relative;
+            transition: transform 0.2s;
+            border: 1px solid var(--border);
+        }
+
+        .card.status-pago { border-left-color: var(--success); }
+        .card.status-pendente { border-left-color: var(--danger); }
+        .card.status-atencao { border-left-color: var(--warning); }
+
+        .card-img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background: #252525;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: var(--primary);
+        }
+
+        .card-info {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        .card-status-text {
+            font-weight: bold;
+            margin-top: 8px;
+            display: block;
+        }
+
+        .card-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+        }
+
+        .column-right {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .summary-panel {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .summary-val {
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .chart-container {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            width: 400px;
+            border: 1px solid var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-dim);
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+        }
+
+        @media (max-width: 900px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .column-right { order: -1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="controls-top">
+            <select id="filterMes" onchange="render()"></select>
+            <select id="filterAno" onchange="render()"></select>
+        </div>
+        <div class="controls-top">
+            <button class="btn btn-primary" onclick="openModal('boleto')">+ Boleto</button>
+            <button class="btn btn-primary" onclick="openModal('parcela')">+ Parcelado</button>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="column-left">
+            <input type="text" id="search" class="search-box" placeholder="Buscar conta..." oninput="render()">
+            <div id="cardList" class="card-list"></div>
+        </div>
+
+        <div class="column-right">
+            <div class="summary-panel">
+                <h3 style="margin-bottom: 15px;">Resumo do Mês</h3>
+                <div class="summary-item"><span>Total Geral:</span> <span id="totalGeral" class="summary-val">R$ 0,00</span></div>
+                <div class="summary-item"><span>Total Pago:</span> <span id="totalPago" class="summary-val" style="color: var(--success)">R$ 0,00</span></div>
+                <div class="summary-item"><span>Total Pendente:</span> <span id="totalPendente" class="summary-val" style="color: var(--danger)">R$ 0,00</span></div>
+                <div class="summary-item"><span>Quantidade:</span> <span id="totalQtd" class="summary-val">0</span></div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="financeChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle" style="margin-bottom: 20px; color: var(--primary)">Novo Item</h2>
+            <input type="hidden" id="editId">
+            <div id="formFields"></div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="saveData()">Salvar</button>
+                <button class="btn" style="background: #444; color: white;" onclick="closeModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let db = JSON.parse(localStorage.getItem('financeDB')) || [];
+        let myChart = null;
+
+        const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        const anos = [2024, 2025, 2026, 2027];
+
+        function init() {
+            const fMes = document.getElementById('filterMes');
+            const fAno = document.getElementById('filterAno');
+            const agora = new Date();
+
+            meses.forEach((m, i) => fMes.innerHTML += `<option value="${i}" ${i === agora.getMonth() ? 'selected' : ''}>${m}</option>`);
+            anos.forEach(a => fAno.innerHTML += `<option value="${a}" ${a === agora.getFullYear() ? 'selected' : ''}>${a}</option>`);
+            
+            render();
+        }
+
+        function openModal(type, editId = null) {
+            const modal = document.getElementById('modal');
+            const fields = document.getElementById('formFields');
+            const title = document.getElementById('modalTitle');
+            document.getElementById('editId').value = editId || '';
+            
+            let item = editId ? db.find(d => d.id == editId) : null;
+            let currentType = item ? item.tipo : type;
+
+            title.innerText = editId ? 'Editar Item' : (currentType === 'boleto' ? 'Novo Boleto' : 'Nova Conta Parcelada');
+
+            let html = `
+                <div class="form-group"><label>Nome</label><input type="text" id="nome" value="${item ? item.nome : ''}"></div>
+                <div class="form-group"><label>Valor ${currentType === 'parcela' ? 'Total' : ''}</label><input type="number" id="valor" value="${item ? item.valor : ''}"></div>
+                <div class="form-group"><label>Data ${currentType === 'parcela' ? 'Inicial' : 'Vencimento'}</label><input type="date" id="data" value="${item ? item.data : ''}"></div>
+                <div class="form-group"><label>Categoria</label><input type="text" id="cat" value="${item ? item.categoria : ''}" placeholder="Ex: Luz, Mercado..."></div>
+                <div class="form-group"><label>URL Imagem (Opcional)</label><input type="text" id="img" value="${item ? item.imagem : ''}"></div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="status">
+                        <option value="pendente" ${item && item.status === 'pendente' ? 'selected' : ''}>Pendente</option>
+                        <option value="pago" ${item && item.status === 'pago' ? 'selected' : ''}>Pago</option>
+                    </select>
+                </div>
+            `;
+
+            if (currentType === 'parcela' && !editId) {
+                html += `<div class="form-group"><label>Nº Parcelas</label><input type="number" id="numParc" value="1"></div>`;
+            }
+
+            fields.innerHTML = html;
+            fields.dataset.type = currentType;
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        function saveData() {
+            const type = document.getElementById('formFields').dataset.type;
+            const editId = document.getElementById('editId').value;
+            const nome = document.getElementById('nome').value;
+            const valor = parseFloat(document.getElementById('valor').value);
+            const data = document.getElementById('data').value;
+            const status = document.getElementById('status').value;
+            const imagem = document.getElementById('img').value;
+            const categoria = document.getElementById('cat').value;
+
+            if (!nome || !valor || !data) return alert("Preencha os campos obrigatórios");
+
+            if (editId) {
+                let idx = db.findIndex(d => d.id == editId);
+                db[idx] = { ...db[idx], nome, valor, data, status, imagem, categoria };
+            } else if (type === 'boleto') {
+                db.push({ id: Date.now(), tipo: 'boleto', nome, valor, data, status, imagem, categoria });
+            } else {
+                const num = parseInt(document.getElementById('numParc').value);
+                const valorParc = valor / num;
+                let dataBase = new Date(data + "T00:00:00");
+
+                for (let i = 0; i < num; i++) {
+                    let dParc = new Date(dataBase);
+                    dParc.setMonth(dParc.getMonth() + i);
+                    db.push({
+                        id: Date.now() + i,
+                        tipo: 'parcela',
+                        nome: `${nome} (${i + 1}/${num})`,
+                        valor: valorParc,
+                        data: dParc.toISOString().split('T')[0],
+                        status: 'pendente',
+                        imagem,
+                        categoria,
+                        parent: nome
+                    });
+                }
+            }
+
+            localStorage.setItem('financeDB', JSON.stringify(db));
+            closeModal();
+            render();
+        }
+
+        function deleteItem(id) {
+            db = db.filter(d => d.id != id);
+            localStorage.setItem('financeDB', JSON.stringify(db));
+            render();
+        }
+
+        function toggleStatus(id) {
+            let item = db.find(d => d.id == id);
+            item.status = item.status === 'pago' ? 'pendente' : 'pago';
+            localStorage.setItem('financeDB', JSON.stringify(db));
+            render();
+        }
+
+        function getStatusInfo(dataStr, status) {
+            if (status === 'pago') return { text: "Pago", class: "status-pago" };
+            const hoje = new Date();
+            hoje.setHours(0,0,0,0);
+            const venc = new Date(dataStr + "T00:00:00");
+            const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
+
+            if (diff < 0) return { text: `Atrasado ${Math.abs(diff)} dias`, class: "status-pendente" };
+            if (diff === 0) return { text: "Vence hoje", class: "status-atencao" };
+            if (diff <= 3) return { text: `Faltam ${diff} dias`, class: "status-atencao" };
+            return { text: `Faltam ${diff} dias`, class: "" };
+        }
+
+        function render() {
+            const mes = parseInt(document.getElementById('filterMes').value);
+            const ano = parseInt(document.getElementById('filterAno').value);
+            const busca = document.getElementById('search').value.toLowerCase();
+            const list = document.getElementById('cardList');
+            list.innerHTML = "";
+
+            let totalG = 0, totalP = 0, totalPend = 0, qtd = 0;
+
+            const filtrados = db.filter(d => {
+                const dt = new Date(d.data + "T00:00:00");
+                const matchData = dt.getMonth() === mes && dt.getFullYear() === ano;
+                const matchBusca = d.nome.toLowerCase().includes(busca) || (d.categoria && d.categoria.toLowerCase().includes(busca));
+                return matchData && matchBusca;
+            });
+
+            filtrados.sort((a,b) => new Date(a.data) - new Date(b.data));
+
+            filtrados.forEach(item => {
+                const info = getStatusInfo(item.data, item.status);
+                totalG += item.valor;
+                if (item.status === 'pago') totalP += item.valor; else totalPend += item.valor;
+                qtd++;
+
+                list.innerHTML += `
+                    <div class="card ${info.class}">
+                        ${item.imagem ? `<img src="${item.imagem}" class="card-img" onerror="this.style.display='none'">` : ''}
+                        <div class="card-title">${item.nome}</div>
+                        <div class="card-info">Vencimento: ${item.data.split('-').reverse().join('/')}</div>
+                        <div class="card-info">Valor: R$ ${item.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                        <div class="card-info">Cat: ${item.categoria || 'Geral'}</div>
+                        <span class="card-status-text" style="color: ${item.status === 'pago' ? 'var(--success)' : (info.class === 'status-atencao' ? 'var(--warning)' : 'var(--danger)')}">${info.text}</span>
+                        <div class="card-actions">
+                            <button class="btn btn-sm" style="background: ${item.status === 'pago' ? '#444' : 'var(--success)'}; color: white" onclick="toggleStatus(${item.id})">${item.status === 'pago' ? 'Desmarcar' : 'Pagar'}</button>
+                            <button class="btn btn-sm" style="background: #333; color: white" onclick="openModal(null, ${item.id})">Editar</button>
+                            <button class="btn btn-sm" style="background: var(--danger); color: white" onclick="deleteItem(${item.id})">X</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('totalGeral').innerText = `R$ ${totalG.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('totalPago').innerText = `R$ ${totalP.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('totalPendente').innerText = `R$ ${totalPend.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('totalQtd').innerText = qtd;
+
+            updateChart(totalP, totalPend);
+        }
+
+        function updateChart(pago, pendente) {
+            const ctx = document.getElementById('financeChart').getContext('2d');
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pago', 'Pendente'],
+                    datasets: [{
+                        data: [pago, pendente],
+                        backgroundColor: ['#2ecc71', '#e74c3c'],
+                        borderColor: '#1e1e1e',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#e0e0e0' } }
+                    }
+                }
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
